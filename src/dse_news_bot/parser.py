@@ -88,12 +88,14 @@ def _build_news(fields: dict[str, str]) -> News:
         tracker = fields[_TRACKER_LABEL]
         raise ParseError(f"Unexpected post date {posted_on!r} for {tracker!r}") from err
 
-    title = fields.get(_TITLE_LABEL, '').split(': ')[1]
+    # titles read "EXCH: Daily Turnover"; the source prefix is not always the
+    # trading code, so drop whatever sits before the first separator
+    _, separator, remainder = fields[_TITLE_LABEL].partition(': ')
+    title = remainder if separator else fields[_TITLE_LABEL]
 
     return News(
         tracker=fields[_TRACKER_LABEL],
-        title=fields[_TITLE_LABEL],
+        title=title,
         content=fields[_CONTENT_LABEL],
         posted_on=posted_on,
-
     )
