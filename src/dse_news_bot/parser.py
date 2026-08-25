@@ -88,6 +88,8 @@ def _build_news(fields: dict[str, str]) -> News:
         tracker = fields[_TRACKER_LABEL]
         raise ParseError(f"Unexpected post date {posted_on!r} for {tracker!r}") from err
 
+    title = fields.get(_TITLE_LABEL, '').split(': ')[1]
+
     return News(
         tracker=fields[_TRACKER_LABEL],
         title=fields[_TITLE_LABEL],

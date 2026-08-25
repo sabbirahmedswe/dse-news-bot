@@ -26,13 +26,70 @@ pip install -r requirements.txt
 pip install -e . --no-deps
 ```
 
+## Configure
+
+Create a `.env` in the project root (it is gitignored - **never commit your bot
+token**):
+
+```ini
+PORTFOLIO=BEACONPHAR,SQURPHARMA,GP
+TELEGRAM_BOT_TOKEN=123456:ABC-your-token-from-@BotFather
+TELEGRAM_CHAT_ID=
+```
+
+| Key | Meaning |
+| --- | --- |
+| `PORTFOLIO` | Comma-separated trading codes to watch. Case and spacing don't matter. |
+| `TELEGRAM_BOT_TOKEN` | From [@BotFather](https://t.me/BotFather) -> `/newbot`. |
+| `TELEGRAM_CHAT_ID` | Where messages go. See below. |
+| `STATE_PATH` | Optional. Where the "already sent" log lives; defaults to `.state/sent.json`. |
+
+### Finding your chat id
+
+A bot token alone can't send anywhere - Telegram also needs a chat id, and one
+only exists once you've messaged the bot.
+
+1. Open your bot in Telegram and send it any message (e.g. `hi`).
+2. Run:
+
+   ```bash
+   python main.py --chat-id
+   ```
+
+   ```
+     123456789	Sabbir Ahmed (@username) [private]
+
+   Put TELEGRAM_CHAT_ID=<id> in .env
+   ```
+
+3. Paste the id into `.env`.
+
+To post into a group instead, add the bot to the group, send a message there,
+and re-run - group ids are negative.
+
 ## Run
 
 ```bash
 python main.py
 ```
 
-This fetches today's news page from DSE and prints the raw HTML.
+Fetches today's DSE news, keeps the items whose trading code is in `PORTFOLIO`,
+and sends one Telegram message per item. Already-sent items are recorded in
+`.state/sent.json`, so running it repeatedly through the day only delivers what
+is new. Exits `1` with a one-line message if anything fails.
+
+### Scheduling
+
+Because of the dedup log it is safe to run on a timer. On Windows, every 30
+minutes on weekdays:
+
+```powershell
+schtasks /create /tn "DSE News" /sc minute /mo 30 /d MON,TUE,WED,THU,SUN `
+  /tr "'E:\projects\dse-news-bot\.venv\Scripts\python.exe' 'E:\projects\dse-news-bot\main.py'"
+```
+
+Set the task's "Start in" directory to the project root so `.env` is found.
+(DSE trades Sunday-Thursday.)
 
 ## Debug
 
@@ -84,10 +141,13 @@ Or inspect a value in place by adding `breakpoint()` to the code.
 ## Layout
 
 ```
-main.py                     entry point
+main.py                     entry point / wiring
 src/dse_news_bot/
+  config.py                 .env -> validated Config
   client.py                 HTTP session with retries, fetches the news page
   parser.py                 HTML -> News objects
+  notifier.py               News -> Telegram message
+  state.py                  log of already-sent items (dedup)
   models.py                 News dataclass
-  exceptions.py             FetchError
+  exceptions.py             ConfigError, FetchError, ParseError, NotifyError
 ```
