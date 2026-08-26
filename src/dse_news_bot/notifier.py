@@ -128,7 +128,7 @@ def _format(news: News) -> str:
     title = html.escape(news.title, quote=False)
     content = html.escape(news.content, quote=False)
 
-    return f"<b>{tracker}</b>\n{title}\n\n{content}\n\n{news.posted_on.isoformat()}"
+    return f"#{tracker}\n<b>{title}</b>\n\n{content}"
 
 
 def _split(text: str) -> list[str]:
