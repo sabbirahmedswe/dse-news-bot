@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -10,6 +11,8 @@ from dse_news_bot.models import News
 
 _RETENTION = dt.timedelta(days=7)
 _DIGEST_LEN = 12
+
+logger = logging.getLogger(__name__)
 
 
 class SentLog:
@@ -30,10 +33,18 @@ class SentLog:
         """
         try:
             entries = json.loads(path.read_text(encoding='utf-8'))
-        except (OSError, ValueError):
+        except FileNotFoundError:
+            return cls(path, {})
+        except (OSError, ValueError) as err:
+            logger.warning(
+                "State log %s unreadable (%s) - starting empty, items may be re-sent", path, err
+            )
             return cls(path, {})
 
         if not isinstance(entries, dict):
+            logger.warning(
+                "State log %s is not a JSON object - starting empty, items may be re-sent", path
+            )
             return cls(path, {})
 
         return cls(path, {str(key): str(value) for key, value in entries.items()})
