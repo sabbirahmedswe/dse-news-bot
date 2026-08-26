@@ -18,7 +18,8 @@ authors = [
 ]
 readme = "README.md"
 
+[project.scripts]
+dse-news-bot = "dse_news_bot.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
-
-

@@ -71,4 +71,4 @@ def _print_chat_ids() -> None:
 
 
 if __name__ == '__main__':
-    raise SystemExit(main())
+    raise sys.exit(main())
