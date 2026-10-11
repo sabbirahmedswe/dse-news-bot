@@ -9,7 +9,7 @@ import datetime as dt
 
 from dse_news_bot.exceptions import FetchError
 
-_NEWS_URL = 'https://www.dsebd.org/old_news.php'
+_NEWS_URL = 'https://old.dsebd.org/old_news.php'
 _NEWS_CRITERIA = '4'
 _ARCHIVE_TYPE = 'news'
 
