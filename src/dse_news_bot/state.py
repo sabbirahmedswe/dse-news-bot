@@ -55,6 +55,12 @@ class SentLog:
     def mark(self, news: News) -> None:
         self._entries[_key(news)] = dt.date.today().isoformat()
 
+    def has_market_update(self, day: dt.date) -> bool:
+        return _market_key(day) in self._entries
+
+    def mark_market_update(self, day: dt.date) -> None:
+        self._entries[_market_key(day)] = dt.date.today().isoformat()
+
     def save(self) -> None:
         """Write the pruned log atomically, so an interrupted run leaves valid JSON."""
         self._prune()
@@ -83,6 +89,11 @@ def _key(news: News) -> str:
     digest = hashlib.sha1(f"{news.title}{news.content}".encode('utf-8')).hexdigest()
 
     return f"{news.tracker}|{news.posted_on.isoformat()}|{digest[:_DIGEST_LEN]}"
+
+
+def _market_key(day: dt.date) -> str:
+    """One key per trading day: the market update goes out at most once a day."""
+    return f"market|{day.isoformat()}"
 
 
 def _as_date(value: str) -> dt.date:

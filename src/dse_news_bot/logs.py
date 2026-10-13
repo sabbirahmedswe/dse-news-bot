@@ -119,7 +119,9 @@ def _file_handler(path: Path) -> logging.Handler | None:
 
 
 def _console_handler() -> logging.Handler:
-    handler = logging.StreamHandler(sys.stdout)
+    # stderr, so a command's own output on stdout (the market update) stays clean
+    # when piped
+    handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(logging.Formatter(_CONSOLE_FORMAT))
 
     return handler

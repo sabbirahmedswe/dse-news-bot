@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import time
+from collections.abc import Iterable
 from types import TracebackType
 from typing import Any
 
@@ -10,7 +11,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from dse_news_bot.exceptions import NotifyError
-from dse_news_bot.models import News
+from dse_news_bot.models import MarketSnapshot, News
+from dse_news_bot.report import format_market_messages
 
 _API_BASE = 'https://api.telegram.org/bot{token}/{method}'
 
@@ -32,13 +34,23 @@ class TelegramNotifier:
     def send_news(self, chat_id: str, news: News) -> None:
         """Deliver one news item, splitting it if it exceeds Telegram's limit."""
         for chunk in _split(_format(news)):
-            self._call('sendMessage', json={
-                'chat_id': chat_id,
-                'text': chunk,
-                'parse_mode': 'HTML',
-                'disable_web_page_preview': True,
-            })
-            time.sleep(_SEND_INTERVAL)
+            self._send_html(chat_id, chunk)
+
+    def send_market_update(
+        self, chat_id: str, snapshot: MarketSnapshot, portfolio: Iterable[str]
+    ) -> None:
+        """Deliver the market update, over several messages if it is long."""
+        for message in format_market_messages(snapshot, portfolio, _MAX_MESSAGE_LEN):
+            self._send_html(chat_id, message)
+
+    def _send_html(self, chat_id: str, text: str) -> None:
+        self._call('sendMessage', json={
+            'chat_id': chat_id,
+            'text': text,
+            'parse_mode': 'HTML',
+            'disable_web_page_preview': True,
+        })
+        time.sleep(_SEND_INTERVAL)
 
     def discover_chats(self) -> list[tuple[str, str]]:
         """Return ``(chat_id, label)`` for every chat that has messaged the bot."""

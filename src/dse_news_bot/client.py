@@ -13,6 +13,8 @@ _NEWS_URL = 'https://old.dsebd.org/old_news.php'
 _NEWS_CRITERIA = '4'
 _ARCHIVE_TYPE = 'news'
 
+_PRICES_URL = 'https://old.dsebd.org/latest_share_price_scroll_l.php'
+
 _MAX_RETRIES = 4
 _BACKOFF_FACTOR = 0.5
 _RETRY_STATUSES = (429, 500, 502, 503, 504)
@@ -29,11 +31,18 @@ class DseNewsClient:
             'archive': _ARCHIVE_TYPE
         }
 
+        return self._get(_NEWS_URL, 'news', params=params)
+
+    def fetch_prices(self) -> str:
+        """Fetch the latest share price table for every listed ticker."""
+        return self._get(_PRICES_URL, 'share prices')
+
+    def _get(self, url: str, what: str, params: dict[str, str] | None = None) -> str:
         try:
-            response = self._session.get(_NEWS_URL, params=params)
+            response = self._session.get(url, params=params)
             response.raise_for_status()
         except Exception as err:
-            raise FetchError(f"Uable to fetch from DSE, {err=}")
+            raise FetchError(f"Unable to fetch {what} from DSE, {err=}") from err
 
         return response.text
 

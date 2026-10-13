@@ -84,9 +84,56 @@ dse-news-bot
 Fetches today's DSE news, keeps the items whose trading code is in `PORTFOLIO`,
 and sends one Telegram message per item. Already-sent items are recorded in
 `.state/sent.json`, so running it repeatedly through the day only delivers what
-is new. Exits `1` with a one-line message if anything fails.
+is new. The same run then sends the [market update](#market-update) once the
+market has closed. Exits `1` with a one-line message if anything fails; a failure
+in one of the two doesn't stop the other.
 
 Everything it prints also goes to a log file - see [Logs](#logs).
+
+### Market update
+
+Once per trading day, after the 14:30 close, the bot sends one Telegram message
+with each `PORTFOLIO` ticker's last traded price (LTP) and its change against
+yesterday's close (YCP), `(LTP - YCP) x 100 / YCP`, with an arrow for the
+direction. Prices come from DSE's
+[latest share price](https://old.dsebd.org/latest_share_price_scroll_l.php) page.
+
+```
+Today's Update
+
+1JANATAMF    3.50   ▲ +6.06%
+BDSERVICE    5.20  no trades
+GP         238.30   ▼ -1.16%
+ROBI        29.80      0.00%
+
+Not on the price page: NOTREAL
+```
+
+The title is bold in Telegram. A ticker with no trades today shows yesterday's
+close; a row DSE renders with unexpected values is skipped with a warning.
+
+Every run checks, in order, and stops at the first that fails:
+
+1. **Not done yet today** - a `market|<date>` entry in `.state/sent.json` records
+   the send, so it goes out once however often the task runs.
+2. **After 14:30** Dhaka time, whatever the machine's clock zone - before the close
+   the price page isn't even fetched.
+3. **Prices are from today** - after the close, a page still showing an earlier
+   day means no trading today (a holiday). That is recorded too, so the page isn't
+   fetched again until tomorrow.
+4. **Prices are the close** - the page's timestamp must be 14:30 or later. If it
+   still shows an earlier time at 15:30, the page stopped at the bell and today's
+   prices are sent anyway.
+
+A page with no price table at all fails the run instead of sending an empty update,
+and a later run tries again. A long update is split over several messages.
+
+```bash
+dse-news-bot --market              # just the market update, same checks, sends
+dse-news-bot --market --dry-run    # print it now: no checks, no Telegram, only PORTFOLIO needed
+```
+
+Any other flag combination is rejected with exit code `2` and a usage line.
 
 ## Logs
 
@@ -104,7 +151,8 @@ The file rotates at midnight and keeps **7 days**, so yesterday is
 than by a running clock, so it works even though each run lives about two seconds.
 
 The console keeps the plain wording it always had - the timestamps and levels are
-added only in the file.
+added only in the file. Console log lines go to stderr, so `dse-news-bot --market
+--dry-run > update.txt` captures just the update.
 
 Set `LOG_LEVEL=DEBUG` for more detail. Bot tokens are stripped from every record
 before it is written, so a Telegram URL in a retry warning or a traceback lands as
@@ -136,6 +184,9 @@ schtasks /delete /tn "DSE News" /f             # remove
 
 "Last Result" tells you only whether a run failed. For *what* it did - or why it
 failed - read the log file.
+
+The market update needs no task of its own: the first run after DSE publishes its
+closing prices (around 14:40) sends it, and every later run that day skips it.
 
 ### Set STATE_PATH and LOG_PATH to absolute paths
 
@@ -175,11 +226,12 @@ Create `.vscode/launch.json`:
 src/dse_news_bot/
   cli.py                    entry point / wiring
   config.py                 .env -> validated Config
-  client.py                 HTTP session with retries, fetches the news page
-  parser.py                 HTML -> News objects
+  client.py                 HTTP session with retries, fetches the news and price pages
+  parser.py                 HTML -> News / MarketSnapshot objects
+  report.py                 MarketSnapshot -> market update text
   notifier.py               News -> Telegram message
   state.py                  log of already-sent items (dedup)
   logs.py                   console + rotating file logging setup
-  models.py                 News dataclass
+  models.py                 News, SharePrice, MarketSnapshot dataclasses
   exceptions.py             ConfigError, FetchError, ParseError, NotifyError
 ```

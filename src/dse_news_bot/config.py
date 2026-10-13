@@ -24,11 +24,12 @@ class Config:
     state_path: Path
 
     @classmethod
-    def load(cls, require_chat_id: bool = True) -> Config:
+    def load(cls, require_chat_id: bool = True, require_bot_token: bool = True) -> Config:
         """Read settings from the environment, falling back to a local ``.env``.
 
         ``require_chat_id`` is off for the ``--chat-id`` bootstrap, which by
-        definition runs before the chat id is known.
+        definition runs before the chat id is known. ``require_bot_token`` is
+        off for console-only modes that never talk to Telegram.
         """
         load_dotenv()
 
@@ -39,7 +40,11 @@ class Config:
 
         return cls(
             portfolio=_read_portfolio(),
-            bot_token=_read_required(_BOT_TOKEN_KEY, 'get one from @BotFather on Telegram'),
+            bot_token=(
+                _read_required(_BOT_TOKEN_KEY, 'get one from @BotFather on Telegram')
+                if require_bot_token
+                else os.getenv(_BOT_TOKEN_KEY, '').strip()
+            ),
             chat_id=chat_id,
             state_path=Path(os.getenv(_STATE_PATH_KEY) or _DEFAULT_STATE_PATH),
         )
